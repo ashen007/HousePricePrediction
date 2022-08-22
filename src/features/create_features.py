@@ -47,3 +47,27 @@ def freq_encode_nominal_features(features, normalize=False):
 
     if normalize:
         features[nominal_feat] = features[nominal_feat].apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
+
+
+def derived_features(features):
+    """
+    create features from existing features
+    :param features:
+    :return:
+    """
+    features['propage'] = features['yrsold'] - features['yearbuilt']
+    features['modage'] = features['yrsold'] - features['yearremodadd']
+    features['timetomod'] = features['yearremodadd'] - features['yearbuilt']
+
+    def quarter(x):
+        if x <= 4:
+            return 1
+        elif 4 < x <= 8:
+            return 2
+        elif x > 8:
+            return 3
+
+    features['quarter'] = features['mosold'].apply(quarter)
+    features['totfhbsmntarea'] = features['bsmtfinsf1'] + features['bsmtfinsf2']
+    features['totbathbsmnt'] = features['bsmtfullbath'] + features['bsmthalfbath']
+    features['totbathbsabv'] = features['fullbath'] + features['halfbath']
