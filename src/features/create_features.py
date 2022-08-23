@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import sklearn.feature_selection
+from sklearn.decomposition import PCA
 
 
 def encode_ordinal_features(features, mapping=None):
@@ -71,3 +73,69 @@ def derived_features(features):
     features['totfhbsmntarea'] = features['bsmtfinsf1'] + features['bsmtfinsf2']
     features['totbathbsmnt'] = features['bsmtfullbath'] + features['bsmthalfbath']
     features['totbathbsabv'] = features['fullbath'] + features['halfbath']
+
+    features['drivfeat1'] = features['overallqual'] * features['overallcond']
+    features['drivfeat2'] = features['bsmtqual'] * features['bsmtcond']
+    features['drivfeat3'] = features['exterqual'] * features['extercond']
+    features['drivfeat4'] = np.sum(features[['wooddecksf', 'openporchsf', 'enclosedporch', '3ssnporch',
+                                             'screenporch']], axis=1)
+    features['drivfeat5'] = features.groupby('masvnrtype')['masvnrarea'].transform('mean')
+    features['drivfeat6'] = features.groupby('garagetype')['garagearea'].transform('mean')
+
+    features[['grlivarea', 'garagearea', 'lotarea',
+              '1stflrsf', '2ndflrsf']] = np.sqrt(features[['grlivarea', 'garagearea', 'lotarea',
+                                                           '1stflrsf', '2ndflrsf']])
+
+    features['pcafeat1'] = features.groupby('bsmtfintype2')['bsmtfinsf2'].transform('mean')
+    features['pcafeat2'] = features['fireplaces'] * features['fireplacequ']
+    features['pcafeat3'] = features['exterior1st'] * features['exterior2nd']
+    features['pcafeat4'] = features['garageyrblt'] * features['garagequal']
+
+
+def kmeans(features):
+    pass
+
+
+def apply_pca(features, standardize=True):
+    """apply principal component analysis to generate synthetic features"""
+    if standardize:
+        features = (features - np.mean(features, axis=0)) / np.std(features, axis=0)
+
+    pca = PCA()
+    feat_pca = pca.fit_transform(features)
+    comp_names = [f'pc{i + 1}' for i in range(feat_pca.shape[1])]
+    feat_pca = pd.DataFrame(feat_pca, columns=comp_names)
+    loading = pd.DataFrame(pca.components_.T, columns=comp_names, index=features.columns)
+
+    return pca, feat_pca, loading
+
+
+def normalize(features):
+    """
+    normalize features
+    :param features:
+    :return:
+    """
+    features = features.apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
+
+
+def log_transform(features):
+    """
+    transform skewed features using logarithmic
+    :param features:
+    :return:
+    """
+    features = features.apply(lambda x: np.log(x))
+
+
+def mi_score(features, target, discrete_features):
+    """
+    calculate mutual information score
+    :param target:
+    :param discrete_features:
+    :param features:
+    :return:
+    """
+    mi_scores = sklearn.feature_selection.mutual_info_regression(features, target, discrete_features=discrete_features)
+
+    return pd.Series(mi_scores, index=features.columns).sort_values(ascending=False)
