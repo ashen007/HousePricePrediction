@@ -116,16 +116,7 @@ def normalize(features):
     :param features:
     :return:
     """
-    features = features.apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
-
-
-def log_transform(features):
-    """
-    transform skewed features using logarithmic
-    :param features:
-    :return:
-    """
-    features = features.apply(lambda x: np.log(x))
+    return features.apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
 
 
 def mi_score(features, target, discrete_features):

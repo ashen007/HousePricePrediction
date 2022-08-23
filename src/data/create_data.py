@@ -64,8 +64,8 @@ def load_test_data(path):
     fill_nan_in_num(feature)
     fill_nan_in_cat(feature)
 
-    cat_cols = feature.select_dtypes(include=[int, float]).columns
-    num_cols = feature.select_dtypes(include=object).columns
+    num_cols = feature.select_dtypes(include=[int, float]).columns
+    cat_cols = feature.select_dtypes(include=object).columns
 
     feature[cat_cols] = feature[cat_cols].fillna(value='NO')
     feature[num_cols] = feature[num_cols].fillna(value=0)
