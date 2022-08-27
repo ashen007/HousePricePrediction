@@ -1,4 +1,6 @@
+import json
 import numpy as np
+from numpyencoder import NumpyEncoder
 from sklearn.model_selection import KFold, RandomizedSearchCV, GridSearchCV
 
 
@@ -125,24 +127,40 @@ class FitEstimator:
 
         return new_param
 
+    @staticmethod
+    def tuner_progress(cv_result):
+        train_mean = np.mean(np.sqrt(np.abs(cv_result['mean_train_score'])))
+        test_mean = np.mean(np.sqrt(np.abs(cv_result['mean_test_score'])))
+        train_std = np.std(np.sqrt(np.abs(cv_result['mean_train_score'])))
+        test_std = np.std(np.sqrt(np.abs(cv_result['mean_test_score'])))
+
+        print(f'mean train score: {train_mean} mean test score: {test_mean}')
+        print(f'std train score: {train_std} std test score: {test_std}')
+        print()
+
+        return
+
     def random_search(self, param_distributions, scoring, n_iter, cv, verbose):
         return RandomizedSearchCV(estimator=self._est,
                                   param_distributions=param_distributions,
                                   scoring=scoring,
                                   n_iter=n_iter,
                                   cv=cv,
+                                  return_train_score=True,
                                   n_jobs=-1,
                                   verbose=verbose)
 
     def grid_search(self, param_grid, scoring, cv, verbose):
-        return GridSearchCV(estimator=self._est,
+        return GridSearchCV(estimator=self.best_random_est,
                             param_grid=param_grid,
                             scoring=scoring,
                             cv=cv,
+                            return_train_score=True,
                             n_jobs=-1,
                             verbose=verbose)
 
-    def fine_tune(self, x, y, init_grid, n_random_tunes, factor=2, cv=None, n_iter=10, scoring=None, grid_search=True):
+    def fine_tune(self, x, y, init_grid, n_random_tunes, log_name, factor=2, cv=None, n_iter=10, scoring=None):
+        logs = []
         rs = self.random_search(param_distributions=init_grid,
                                 scoring=scoring,
                                 n_iter=n_iter,
@@ -152,7 +170,9 @@ class FitEstimator:
         current_para = rs.best_params_
         self.best_random_est = rs.best_estimator_
 
-        for _ in range(n_random_tunes):
+        logs.append({'init_fit': rs.cv_results_})
+
+        for j in range(n_random_tunes):
             re_para_dis = self.re_arrange_para_dist(factor, current_para)
 
             temp = self.random_search(param_distributions=re_para_dis,
@@ -164,8 +184,14 @@ class FitEstimator:
             current_para = temp.best_params_
             self.best_random_est = temp.best_estimator_
 
-        if grid_search:
-            return
+            print(f'{j + 1}/{n_random_tunes}')
+            self.tuner_progress(temp.cv_results_)
+
+            logs.append({f'iter{j}_fit': temp.cv_results_})
+
+        with open(f'../data/log/{log_name}', 'w') as file:
+            json.dump(logs, file, cls=NumpyEncoder)
 
         return self.best_random_est
+
 
