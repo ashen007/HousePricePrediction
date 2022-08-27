@@ -1,4 +1,5 @@
 import json
+import pickle
 import numpy as np
 from numpyencoder import NumpyEncoder
 from sklearn.model_selection import KFold, RandomizedSearchCV, GridSearchCV
@@ -25,6 +26,10 @@ class FitEstimator:
 
     def predict(self, x):
         return self._est.predict(x)
+
+    def save_model(self, file_name):
+        with open(f'../model/{file_name}.sav', 'wb') as file:
+            pickle.dump(self.best_random_est, file)
 
     @staticmethod
     def score(true_y, pred_y, method, squared=False):
@@ -64,7 +69,7 @@ class FitEstimator:
             i += 1
 
     @staticmethod
-    def re_arrange_para_dist(factor, best_vales):
+    def re_arrange_para_dist(factor, best_vales, clip=None):
         new_param = {}
 
         for key, value in best_vales.items():
@@ -76,6 +81,14 @@ class FitEstimator:
 
                 lower = value - boundary
                 upper = value + boundary
+
+                if clip is not None:
+                    if key in clip.keys():
+                        if lower < clip[key][0]:
+                            lower = clip[key][0]
+
+                        if upper > clip[key][1]:
+                            upper = clip[key][1]
 
                 if lower < 0:
                     if isinstance(value, (int, np.int32, np.int64, np.int16, np.int8)):
@@ -159,7 +172,7 @@ class FitEstimator:
                             n_jobs=-1,
                             verbose=verbose)
 
-    def fine_tune(self, x, y, init_grid, n_random_tunes, log_name, factor=2, cv=None, n_iter=10, scoring=None):
+    def fine_tune(self, x, y, init_grid, n_random_tunes, log_name, factor=2, clip=None, cv=None, n_iter=10, scoring=None):
         logs = []
         rs = self.random_search(param_distributions=init_grid,
                                 scoring=scoring,
@@ -173,7 +186,7 @@ class FitEstimator:
         logs.append({'init_fit': rs.cv_results_})
 
         for j in range(n_random_tunes):
-            re_para_dis = self.re_arrange_para_dist(factor, current_para)
+            re_para_dis = self.re_arrange_para_dist(factor, current_para, clip)
 
             temp = self.random_search(param_distributions=re_para_dis,
                                       scoring=scoring,
@@ -193,5 +206,3 @@ class FitEstimator:
             json.dump(logs, file, cls=NumpyEncoder)
 
         return self.best_random_est
-
-

@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-import sklearn.feature_selection
+
+from sklearn.feature_selection import *
+from sklearn.preprocessing import *
 from sklearn.decomposition import PCA
 
 
@@ -119,6 +121,34 @@ def normalize(features):
     return features.apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
 
 
+def quantile_transformation(features, output_distribution, n_quantiles):
+    """
+    transform input data using quantile to given distribution
+    :param n_quantiles:
+    :param output_distribution:
+    :param features:
+    :return:
+    """
+    transformer = QuantileTransformer(n_quantiles=n_quantiles,
+                                      output_distribution=output_distribution).fit(features)
+
+    return transformer
+
+
+def power_transformation(features, method, standardize):
+    """
+    mapping features to gaussian distribution
+    :param features:
+    :param method:
+    :param standardize:
+    :return:
+    """
+    transformer = PowerTransformer(method=method,
+                                   standardize=standardize).fit(features)
+
+    return transformer
+
+
 def mi_score(features, target, discrete_features):
     """
     calculate mutual information score
@@ -127,6 +157,6 @@ def mi_score(features, target, discrete_features):
     :param features:
     :return:
     """
-    mi_scores = sklearn.feature_selection.mutual_info_regression(features, target, discrete_features=discrete_features)
+    mi_scores = mutual_info_regression(features, target, discrete_features=discrete_features)
 
     return pd.Series(mi_scores, index=features.columns).sort_values(ascending=False)
