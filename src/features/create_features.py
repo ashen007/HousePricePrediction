@@ -85,8 +85,8 @@ def derived_features(features):
     features['drivfeat6'] = features.groupby('garagetype')['garagearea'].transform('mean')
 
     features[['grlivarea', 'garagearea', 'lotarea',
-              '1stflrsf', '2ndflrsf']] = np.sqrt(features[['grlivarea', 'garagearea', 'lotarea',
-                                                           '1stflrsf', '2ndflrsf']])
+              '1stflrsf', '2ndflrsf', 'totalbsmtsf']] = np.sqrt(features[['grlivarea', 'garagearea', 'lotarea',
+                                                           '1stflrsf', '2ndflrsf', 'totalbsmtsf']])
 
     features['pcafeat1'] = features.groupby('bsmtfintype2')['bsmtfinsf2'].transform('mean')
     features['pcafeat2'] = features['fireplaces'] * features['fireplacequ']

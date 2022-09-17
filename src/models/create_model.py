@@ -14,6 +14,7 @@ class FitEstimator:
         self._fold_dtl = None
         self._est = estimator
         self.RANDOM_STATE = random_state
+        self.para_dists = []
 
     def create_folds(self, k=5, shuffle=True):
         return KFold(n_splits=k, random_state=self.RANDOM_STATE, shuffle=shuffle)
@@ -69,7 +70,7 @@ class FitEstimator:
             i += 1
 
     @staticmethod
-    def re_arrange_para_dist(factor, best_vales, clip=None):
+    def re_arrange_para_dist(factor, best_vales, acpt_range, clip=None):
         new_param = {}
 
         for key, value in best_vales.items():
@@ -118,6 +119,10 @@ class FitEstimator:
                         paras = []
 
                         while len(paras) != 3:
+                            if lower >= upper:
+                                lower = acpt_range[key][0]
+                                upper = acpt_range[key][1]
+
                             p = np.random.randint(lower, upper, 1)[0]
 
                             if p not in paras:
@@ -129,6 +134,10 @@ class FitEstimator:
                         paras = []
 
                         while len(paras) != 3:
+                            if lower >= upper:
+                                lower = acpt_range[key][0]
+                                upper = acpt_range[key][1]
+
                             p = np.random.uniform(lower, upper, 1)[0]
 
                             if p not in paras:
@@ -172,7 +181,15 @@ class FitEstimator:
                             n_jobs=-1,
                             verbose=verbose)
 
-    def fine_tune(self, x, y, init_grid, n_random_tunes, log_name, factor=2, clip=None, cv=None, n_iter=10, scoring=None):
+    def fine_tune(self, x, y,
+                  init_grid,
+                  n_random_tunes,
+                  log_name,
+                  factor=2,
+                  clip=None,
+                  cv=None,
+                  n_iter=10,
+                  scoring=None):
         logs = []
         rs = self.random_search(param_distributions=init_grid,
                                 scoring=scoring,
@@ -187,6 +204,7 @@ class FitEstimator:
 
         for j in range(n_random_tunes):
             re_para_dis = self.re_arrange_para_dist(factor, current_para, clip)
+            self.para_dists.append(re_para_dis)
 
             temp = self.random_search(param_distributions=re_para_dis,
                                       scoring=scoring,
