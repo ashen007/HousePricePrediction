@@ -1,6 +1,8 @@
 import plotly.express as ex
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
+from sklearn.feature_selection import mutual_info_regression, chi2
+from sklearn.ensemble import RandomForestRegressor
 
 
 def grouped_hist(df, x, heu, kde=False, separate_cols=False):
@@ -25,3 +27,15 @@ def grouped_hist(df, x, heu, kde=False, separate_cols=False):
                      color=heu)
 
     return g.show()
+
+
+def feature_importance(X, y, method='mut_info'):
+    if method == 'model_selection':
+        base_estimator = RandomForestRegressor(min_samples_split=50, min_samples_leaf=25, n_jobs=-1)
+        base_estimator.fit(X, y)
+        importance = base_estimator.feature_importances_
+
+    if method == 'mut_info':
+        pass
+
+    return

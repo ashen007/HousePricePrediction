@@ -7,6 +7,62 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import FunctionTransformer
 
 
+def imputation_pipeline():
+    missing_cat_columns = ['Alley', 'MasVnrType', 'BsmtQual', 'BsmtCond',
+                           'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
+                           'FireplaceQu', 'GarageType', 'GarageFinish',
+                           'GarageQual', 'GarageCond', 'PoolQC',
+                           'Fence', 'MiscFeature']
+    missing_num_columns = ['LotFrontage', 'GarageYrBlt', 'MasVnrArea']
+    imputing_cols = [*missing_cat_columns,
+                     'Electrical', 'LotFrontage',
+                     'MSZoning', 'MasVnrArea',
+                     'MasVnrType', 'GarageYrBlt']
+
+    categorical_impute_pipeline_1 = Pipeline([
+        ('categorical_features', FunctionTransformer(lambda df: df[missing_cat_columns])),
+        ('mnar_impute', SimpleImputer(strategy='constant', fill_value='None'))
+    ])
+
+    categorical_impute_pipeline_2 = Pipeline([
+        ('categorical_features', FunctionTransformer(lambda df: df[['Electrical']])),
+        ('mar_impute', SimpleImputer(strategy='most_frequent'))
+    ])
+
+    numerical_impute_pipeline_1 = Pipeline([
+        ('numerical_features', FunctionTransformer(lambda df: df[['LotFrontage', 'MSZoning',
+                                                                  'MasVnrArea', 'MasVnrType']])),
+        ('median_impute', InfraredMedianImputer(anchor_map={'LotFrontage': 'MSZoning',
+                                                            'MasVnrArea': 'MasVnrType'}))
+    ])
+
+    numerical_impute_pipeline_2 = Pipeline([
+        ('numerical_features', FunctionTransformer(lambda df: df[['GarageYrBlt']])),
+        ('end_tail_impute', EndTailImputer(tail='right'))
+    ])
+
+    cat_full_pipes = Pipeline([('union', FeatureUnion([('impute_1', categorical_impute_pipeline_1),
+                                                       ('impute_2', categorical_impute_pipeline_2)])),
+                               ('to_df', FunctionTransformer(lambda array: pd.DataFrame(array,
+                                                                                        columns=[
+                                                                                            *missing_cat_columns,
+                                                                                            'Electrical']))),
+                               ('final_impute', FunctionTransformer(lambda df: df.fillna(method='ffill')))])
+
+    num_full_pipes = Pipeline([('union', FeatureUnion([('impute_1', numerical_impute_pipeline_1),
+                                                       ('impute_2', numerical_impute_pipeline_2)])),
+                               ('to_df', FunctionTransformer(lambda array: pd.DataFrame(array,
+                                                                                        columns=['LotFrontage',
+                                                                                                 'MSZoning',
+                                                                                                 'MasVnrArea',
+                                                                                                 'MasVnrType',
+                                                                                                 'GarageYrBlt']))),
+                               ('final_impute', FunctionTransformer(lambda df: df.fillna(method='ffill')))])
+
+    return Pipeline([('concat_pipes', FeatureUnion([('cat_imputer', cat_full_pipes),
+                                                    ('num_imputer', num_full_pipes)]))])
+
+
 class InfraredMedianImputer(BaseEstimator, TransformerMixin):
     def __init__(self, anchor_map):
         self.impute_with = None
@@ -44,60 +100,3 @@ class InfraredMedianImputer(BaseEstimator, TransformerMixin):
                 df[c] = np.where((df[c].isna()) & (df[self.anchor_column_map[c]] == k), v, df[c])
 
         return df
-
-
-def imputation_pipeline():
-    missing_cat_columns = ['Alley', 'MasVnrType', 'BsmtQual', 'BsmtCond',
-                           'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
-                           'FireplaceQu', 'GarageType', 'GarageFinish',
-                           'GarageQual', 'GarageCond', 'PoolQC',
-                           'Fence', 'MiscFeature']
-    missing_num_columns = ['LotFrontage', 'GarageYrBlt', 'MasVnrArea']
-    imputing_cols = [*missing_cat_columns,
-                     'Electrical', 'LotFrontage',
-                     'MSZoning', 'MasVnrArea',
-                     'MasVnrType', 'GarageYrBlt']
-
-    categorical_impute_pipeline_1 = Pipeline([
-        ('categorical_features', FunctionTransformer(lambda df: df[missing_cat_columns])),
-        ('mnar_impute', SimpleImputer(strategy='constant', fill_value='None'))
-    ])
-
-    categorical_impute_pipeline_2 = Pipeline([
-        ('categorical_features', FunctionTransformer(lambda df: df[['Electrical']])),
-        ('mar_impute', SimpleImputer(strategy='most_frequent'))
-    ])
-
-    numerical_impute_pipeline_1 = Pipeline([
-        ('numerical_features', FunctionTransformer(lambda df: df[['LotFrontage', 'MSZoning',
-                                                                  'MasVnrArea', 'MasVnrType']])),
-        ('median_impute', InfraredMedianImputer({'LotFrontage': 'MSZoning',
-                                                 'MasVnrArea': 'MasVnrType'}))
-    ])
-
-    numerical_impute_pipeline_2 = Pipeline([
-        ('numerical_features', FunctionTransformer(lambda df: df[['GarageYrBlt']])),
-        ('end_tail_impute', EndTailImputer(tail='right'))
-    ])
-
-    cat_full_pipes = Pipeline([('union', FeatureUnion([('impute_1', categorical_impute_pipeline_1),
-                                                       ('impute_2', categorical_impute_pipeline_2)])),
-                               ('to_df', FunctionTransformer(lambda array: pd.DataFrame(array,
-                                                                                        columns=[
-                                                                                            *missing_cat_columns,
-                                                                                            'Electrical']))),
-                               ('final_impute', FunctionTransformer(lambda df: df.fillna(method='ffill')))])
-
-    num_full_pipes = Pipeline([('union', FeatureUnion([('impute_1', numerical_impute_pipeline_1),
-                                                       ('impute_2', numerical_impute_pipeline_2)])),
-                               ('to_df', FunctionTransformer(lambda array: pd.DataFrame(array,
-                                                                                        columns=['LotFrontage',
-                                                                                                 'MSZoning',
-                                                                                                 'MasVnrArea',
-                                                                                                 'MasVnrType',
-                                                                                                 'GarageYrBlt']))),
-                               ('final_impute', FunctionTransformer(lambda df: df.fillna(method='ffill')))])
-
-    full_impute_pipeline = Pipeline([('concat_pipes', FeatureUnion([('cat_imputer', cat_full_pipes),
-                                                                    ('num_imputer', num_full_pipes)]))])
-    return full_impute_pipeline
