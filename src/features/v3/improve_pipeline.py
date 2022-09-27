@@ -46,7 +46,7 @@ imputing_cols = [*missing_cat_columns,
                  'MasVnrType', 'GarageYrBlt']
 
 
-def imputation_pipeline():
+def imputation_pipeline(dataframe):
     categorical_impute_pipeline_1 = Pipeline([
         ('categorical_features', FunctionTransformer(lambda df: df[missing_cat_columns])),
         ('mnar_impute', SimpleImputer(strategy='constant', fill_value='None'))
@@ -88,12 +88,15 @@ def imputation_pipeline():
                                ('final_impute', FunctionTransformer(lambda df: df.fillna(method='ffill')))])
 
     return Pipeline([('concat_pipes', FeatureUnion([('cat_imputer', cat_full_pipes),
-                                                    ('num_imputer', num_full_pipes)]))])
+                                                    ('num_imputer', num_full_pipes)])),
+                     ('to_df', FunctionTransformer(lambda metrix: pd.DataFrame(metrix, columns=imputing_cols))),
+                     ('final_df', FunctionTransformer(lambda df: pd.concat([df, dataframe.drop(imputing_cols, axis=1)],
+                                                                           axis=1)))])
 
 
-def improvement_pipeline(dataframe):
-    full_impute_pipeline = imputation_pipeline()
-    dataframe[imputing_cols] = full_impute_pipeline.fit_transform(dataframe)
+def preprocessing_pipeline(dataframe):
+    full_impute_pipeline = imputation_pipeline(dataframe)
+    dataframe = full_impute_pipeline.fit_transform(dataframe)
     order_map = {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'None': -1,
                  'NO': -1, 'No': -1, 'Av': 3, 'Mn': 2, 'Reg': 0, 'IR1': 1,
                  'IR2': 2, 'IR3': 3, 'Gtl': 1, 'Mod': 2, 'Sev': 3, 'Y': 1,
