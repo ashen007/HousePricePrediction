@@ -45,7 +45,35 @@ imputing_cols = [*missing_cat_columns,
                  'MSZoning', 'MasVnrArea',
                  'MasVnrType', 'GarageYrBlt']
 
+order_map = {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'None': -1,
+             'NO': -1, 'No': -1, 'Av': 3, 'Mn': 2, 'Reg': 0, 'IR1': 1,
+             'IR2': 2, 'IR3': 3, 'Gtl': 1, 'Mod': 2, 'Sev': 3, 'Y': 1,
+             'N': 0, 'P': -1}
 
+# ----------------------------------------------------------------------------------------------------------------------
+# feature improvement pipeline sections
+nominal_encode_pipeline = Pipeline([('select_nominal', FunctionTransformer(lambda df: df[nominal_columns])),
+                                    ('one_hot', OneHotEncoder()),
+                                    (
+                                        'feature_selection',
+                                        SelectFromModel(RandomForestRegressor(min_samples_split=20,
+                                                                              min_samples_leaf=10,
+                                                                              n_jobs=-1))),
+                                    ('to_df',
+                                     FunctionTransformer(
+                                         lambda metrix: pd.DataFrame.sparse.from_spmatrix(metrix)))])
+
+ordinal_encode_pipeline = Pipeline([('select_ordinal', FunctionTransformer(lambda df: df[ordinal_columns])),
+                                    ('encode', FunctionTransformer(lambda df: df.replace(order_map)))])
+
+continues_pipeline = Pipeline([('select_cont', FunctionTransformer(lambda df: df[continues_columns])),
+                               ('transformation', FunctionTransformer(lambda df: df.apply(np.log1p)))])
+
+discrete_pipeline = Pipeline([('select_discrete', FunctionTransformer(lambda df: df[discrete_columns]))])
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# full imputation pipeline
 def imputation_pipeline(dataframe):
     categorical_impute_pipeline_1 = Pipeline([
         ('categorical_features', FunctionTransformer(lambda df: df[missing_cat_columns])),
@@ -94,36 +122,18 @@ def imputation_pipeline(dataframe):
                                                                            axis=1)))])
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+
 def preprocessing_pipeline(dataframe):
     full_impute_pipeline = imputation_pipeline(dataframe)
     dataframe = full_impute_pipeline.fit_transform(dataframe)
-    order_map = {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'None': -1,
-                 'NO': -1, 'No': -1, 'Av': 3, 'Mn': 2, 'Reg': 0, 'IR1': 1,
-                 'IR2': 2, 'IR3': 3, 'Gtl': 1, 'Mod': 2, 'Sev': 3, 'Y': 1,
-                 'N': 0, 'P': -1}
-
-    nominal_encode_pipeline = Pipeline([('select_nominal', FunctionTransformer(lambda df: df[nominal_columns])),
-                                        ('one_hot', OneHotEncoder()),
-                                        (
-                                            'feature_selection',
-                                            SelectFromModel(RandomForestRegressor(min_samples_split=20,
-                                                                                  min_samples_leaf=10,
-                                                                                  n_jobs=-1))),
-                                        ('to_df',
-                                         FunctionTransformer(
-                                             lambda metrix: pd.DataFrame.sparse.from_spmatrix(metrix)))])
-
-    ordinal_encode_pipeline = Pipeline([('select_ordinal', FunctionTransformer(lambda df: df[ordinal_columns])),
-                                        ('encode', FunctionTransformer(lambda df: df.replace(order_map)))])
-
-    continues_pipeline = Pipeline([('select_cont', FunctionTransformer(lambda df: df[continues_columns])),
-                                   ('transformation', FunctionTransformer(lambda df: df.apply(np.log1p)))])
-
-    discrete_pipeline = Pipeline([('select_discrete', FunctionTransformer(lambda df: df[discrete_columns]))])
 
     return
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+
+# custom preprocessing classes
 class InfraredMedianImputer(BaseEstimator, TransformerMixin):
     def __init__(self, anchor_map):
         self.impute_with = None
